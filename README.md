@@ -1,6 +1,6 @@
 
 # TODO App using python
-This is a TODO build using python, and following Maltilayer App Architecture
+This is a TODO build using python, and following Multilayer App Architecture
 
 ## Install the requirements:
 pip install -r requirements.txt
