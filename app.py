@@ -17,6 +17,17 @@ def get_int_from_user():
 
     return value
 
+def setup_user_name(userService):
+    if userService.are_there_users() == False:
+        print("Please you need sign up to access app")
+
+        first_name = input("Firt Name: ")
+        last_name = input("Last Name: ")
+        email = input("Email: ")
+
+        user = TodoUser(first_name, last_name, email)
+        userService.add_user(user)
+
 def select_your_user():
 
     # print users
@@ -33,19 +44,16 @@ def select_your_user():
     print("User selected:")
     print((user.id, user.first_name, user.last_name, user.email))
 
+def add_task():
+    # todo: implement this method
+    pass
 
-if userService.are_there_users() == False:
-    print("Please you need sign up to access app")
 
-    first_name = input("Firt Name: ")
-    last_name = input("Last Name: ")
-    email = input("Email: ")
-
-    user = TodoUser(first_name, last_name, email)
-    userService.add_user(user)
+setup_user_name(userService)
 
 select_your_user()
 
+add_task()
 
 if __name__ == "__main__":
     pass
