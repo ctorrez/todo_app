@@ -6,8 +6,8 @@ This is a TODO build using python, and following Multilayer App Architecture
 pip install -r requirements.txt
 
 ## Use Cases
-    - Add one user
-    - The current user add task
+- Add one user
+- The current user add task
 
 ## Run the app:
 python app.py
