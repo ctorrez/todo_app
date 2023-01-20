@@ -39,6 +39,6 @@ class User(Base):
 
 if __name__ == "__main__":
     engine = create_engine('sqlite:///todo.db')
-
+    # Base.metadata.create_all(engine)
     with engine.begin() as conn:
         Base.metadata.create_all(conn)
