@@ -1,59 +1,40 @@
+"""Main application entrypoint and Composition Root.
+
+Wires infrastructure, application use cases, and presentation layers.
 """
-TODO App
-Following a Multilayer Architecture
-* Data Layer
-* Business Layer
-* Presentation Layer
-"""
-import services
-from data import TodoUser
+import sys
+from pathlib import Path
 
-userService = services.UserService()
+# Ensure src/ is on python search path when running `python app.py`
+SRC_DIR = Path(__file__).resolve().parent / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
-
-def get_int_from_user():
-    # todo: handle invalid numbers
-    value = int(input("Type your user id: "))
-
-    return value
-
-def setup_user_name(userService):
-    if userService.are_there_users() == False:
-        print("Please you need sign up to access app")
-
-        first_name = input("Firt Name: ")
-        last_name = input("Last Name: ")
-        email = input("Email: ")
-
-        user = TodoUser(first_name, last_name, email)
-        userService.add_user(user)
-
-def select_your_user():
-
-    # print users
-    users = userService.get_users()
-
-    for user in users:
-        print("Id, First Name, Last Name, email")
-        print((user.id, user.first_name, user.last_name, user.email))
-
-    id = int(input("Type your user id: "))
-
-    user = userService.get_user_by_id(id)
-
-    print("User selected:")
-    print((user.id, user.first_name, user.last_name, user.email))
-
-def add_task():
-    # todo: implement this method
-    pass
+from todo.application.services import TaskService, UserService
+from todo.infrastructure.db import build_engine, build_session_factory, init_database
+from todo.infrastructure.sqlite_repos import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
+from todo.presentation.cli import TodoCLI
 
 
-setup_user_name(userService)
+def bootstrap() -> TodoCLI:
+    """Composition Root: Wire dependencies together."""
+    # 1. Infrastructure setup
+    engine = build_engine("sqlite:///todo.db")
+    init_database(engine)
+    session_factory = build_session_factory(engine)
 
-select_your_user()
+    # 2. Concrete Repositories (Adapters)
+    user_repo = SqlAlchemyUserRepository(session_factory)
+    task_repo = SqlAlchemyTaskRepository(session_factory)
 
-add_task()
+    # 3. Application Services (Use Cases)
+    user_service = UserService(user_repo=user_repo)
+    task_service = TaskService(task_repo=task_repo, user_repo=user_repo)
+
+    # 4. Presentation
+    return TodoCLI(user_service=user_service, task_service=task_service)
+
 
 if __name__ == "__main__":
-    pass
+    cli = bootstrap()
+    cli.run()
