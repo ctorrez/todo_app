@@ -1,9 +1,11 @@
 """Integration tests for SQLAlchemy repositories against SQLite."""
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 from todo.infrastructure.db import Base
 from todo.infrastructure.sqlite_repos import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
 
@@ -46,16 +48,22 @@ def test_sqlalchemy_task_repository_crud_and_filter(session_factory):
 
     user = user_repo.save(User(first_name="John", last_name="Doe", email="john@example.com"))
 
-    task1 = task_repo.save(Task(user_id=user.id, title="Task 1"))
-    task2 = task_repo.save(Task(user_id=user.id, title="Task 2"))
+    now = datetime.now(UTC)
+    yesterday = now - timedelta(days=2)
+
+    task1 = task_repo.save(Task(user_id=user.id, title="Task 1", priority=Priority.LOW))
+    task2 = task_repo.save(
+        Task(user_id=user.id, title="Task 2", priority=Priority.URGENT, due_date=yesterday)
+    )
     assert task1.id is not None
     assert task2.id is not None
+    assert task2.priority == Priority.URGENT
 
     # Update task1 to completed
     task1.complete()
     task_repo.save(task1)
 
-    # Filter
+    # Filter by status
     all_tasks = task_repo.list_by_user(user.id)
     assert len(all_tasks) == 2
 
@@ -66,6 +74,16 @@ def test_sqlalchemy_task_repository_crud_and_filter(session_factory):
     pending = task_repo.list_by_user(user.id, status=TaskStatus.PENDING)
     assert len(pending) == 1
     assert pending[0].id == task2.id
+
+    # Filter by priority
+    urgent_tasks = task_repo.list_by_user(user.id, priority=Priority.URGENT)
+    assert len(urgent_tasks) == 1
+    assert urgent_tasks[0].id == task2.id
+
+    # Filter overdue
+    overdue_tasks = task_repo.list_by_user(user.id, overdue_only=True)
+    assert len(overdue_tasks) == 1
+    assert overdue_tasks[0].id == task2.id
 
     # Delete
     deleted = task_repo.delete(task1.id)

@@ -2,7 +2,7 @@
 import copy
 
 from todo.application.ports import TaskRepository, UserRepository
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 
 
 class InMemoryUserRepository(UserRepository):
@@ -58,11 +58,22 @@ class InMemoryTaskRepository(TaskRepository):
         return copy.deepcopy(task) if task else None
 
     def list_by_user(
-        self, user_id: int, status: TaskStatus | None = None
+        self,
+        user_id: int,
+        status: TaskStatus | None = None,
+        priority: Priority | None = None,
+        overdue_only: bool = False,
+        due_today_only: bool = False,
     ) -> list[Task]:
         tasks = [t for t in self._tasks.values() if t.user_id == user_id]
         if status is not None:
             tasks = [t for t in tasks if t.status == status]
+        if priority is not None:
+            tasks = [t for t in tasks if t.priority == priority]
+        if overdue_only:
+            tasks = [t for t in tasks if t.is_overdue]
+        if due_today_only:
+            tasks = [t for t in tasks if t.is_due_today]
         return [copy.deepcopy(t) for t in tasks]
 
     def delete(self, task_id: int) -> bool:

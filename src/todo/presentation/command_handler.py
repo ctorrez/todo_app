@@ -7,7 +7,7 @@ from typing import Any
 
 from todo.application.services import TaskService, UserService
 from todo.domain.exceptions import TodoDomainError
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 
 
 def parse_date(date_str: str | None) -> datetime | None:
@@ -20,6 +20,18 @@ def parse_date(date_str: str | None) -> datetime | None:
         except ValueError:
             continue
     raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD or MM/DD/YYYY.")
+
+
+def parse_priority(priority_str: str | None) -> Priority | None:
+    """Parse priority from case-insensitive string."""
+    if not priority_str:
+        return None
+    try:
+        return Priority(priority_str.strip().upper())
+    except ValueError:
+        raise ValueError(
+            f"Invalid priority '{priority_str}'. Choose from: low, medium, high, urgent."
+        )
 
 
 def user_to_dict(user: User) -> dict[str, Any]:
@@ -38,8 +50,11 @@ def task_to_dict(task: Task) -> dict[str, Any]:
         "user_id": task.user_id,
         "title": task.title,
         "description": task.description,
+        "priority": task.priority.value,
         "status": task.status.value,
         "is_completed": task.is_completed,
+        "is_overdue": task.is_overdue,
+        "is_due_today": task.is_due_today,
         "due_date": task.due_date.isoformat() if task.due_date else None,
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "completed_at": task.completed_at.isoformat() if task.completed_at else None,
@@ -67,6 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
         default="all",
         help="Filter by status (default: all)",
     )
+    t_list.add_argument(
+        "--priority",
+        choices=["low", "medium", "high", "urgent"],
+        default=None,
+        help="Filter by priority (low, medium, high, urgent)",
+    )
+    t_list.add_argument("--overdue", action="store_true", help="Filter pending tasks that are overdue")
+    t_list.add_argument("--due-today", action="store_true", help="Filter pending tasks due today")
     t_list.add_argument("--json", action="store_true", help="Output result as JSON")
 
     # tasks add
@@ -74,6 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     t_add.add_argument("--title", required=True, help="Task title")
     t_add.add_argument("--desc", "--description", dest="desc", default="", help="Task description")
     t_add.add_argument("--due", default=None, help="Due date (YYYY-MM-DD or MM/DD/YYYY)")
+    t_add.add_argument(
+        "--priority",
+        choices=["low", "medium", "high", "urgent"],
+        default="medium",
+        help="Task priority (default: medium)",
+    )
     t_add.add_argument("--user-id", type=int, default=None, help="User ID (defaults to first user)")
     t_add.add_argument("--json", action="store_true", help="Output result as JSON")
 
@@ -186,7 +215,15 @@ def _handle_tasks_command(
         elif args.status == "completed":
             status_filter = TaskStatus.COMPLETED
 
-        tasks = task_service.list_tasks(user_id=user_id, status=status_filter)
+        priority_filter = parse_priority(args.priority)
+
+        tasks = task_service.list_tasks(
+            user_id=user_id,
+            status=status_filter,
+            priority=priority_filter,
+            overdue_only=args.overdue,
+            due_today_only=args.due_today,
+        )
         if is_json:
             print(json.dumps({"status": "success", "data": [task_to_dict(t) for t in tasks]}, indent=2))
         else:
@@ -196,8 +233,10 @@ def _handle_tasks_command(
                 print(f"Tasks for User #{user_id}:")
                 for t in tasks:
                     badge = "[X]" if t.is_completed else "[ ]"
+                    prio_badge = f"[{t.priority.value}]"
                     due = f" (Due: {t.due_date.strftime('%Y-%m-%d')})" if t.due_date else ""
-                    print(f"  {badge} #{t.id} - {t.title}{due}")
+                    alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
+                    print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                     if t.description:
                         print(f"       {t.description}")
         return 0
@@ -205,16 +244,18 @@ def _handle_tasks_command(
     elif args.subcommand == "add":
         user_id = _resolve_user_id(args.user_id, user_service)
         due_date = parse_date(args.due)
+        priority = parse_priority(args.priority) or Priority.MEDIUM
         task = task_service.create_task(
             user_id=user_id,
             title=args.title,
             description=args.desc,
             due_date=due_date,
+            priority=priority,
         )
         if is_json:
             print(json.dumps({"status": "success", "data": task_to_dict(task)}, indent=2))
         else:
-            print(f"Task created successfully: #{task.id} - {task.title}")
+            print(f"Task created successfully: #{task.id} [{task.priority.value}] - {task.title}")
         return 0
 
     elif args.subcommand == "complete":

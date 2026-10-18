@@ -4,7 +4,7 @@ from datetime import datetime
 
 from todo.application.services import TaskService, UserService
 from todo.domain.exceptions import TodoDomainError
-from todo.domain.models import TaskStatus, User
+from todo.domain.models import Priority, TaskStatus, User
 
 
 class TodoCLI:
@@ -67,7 +67,7 @@ class TodoCLI:
         print("-" * 45)
         print("1. Select / Switch User")
         print("2. Register New User")
-        print("3. List Tasks (All / Pending / Completed)")
+        print("3. List Tasks (All / Pending / Completed / Overdue)")
         print("4. Add New Task")
         print("5. Mark Task as Completed")
         print("6. Reopen Completed Task")
@@ -116,25 +116,41 @@ class TodoCLI:
         print("1. All")
         print("2. Pending only")
         print("3. Completed only")
-        filter_choice = input("Choice [1-3, default=1]: ").strip()
+        print("4. Overdue only")
+        print("5. Due today only")
+        filter_choice = input("Choice [1-5, default=1]: ").strip()
 
         status: TaskStatus | None = None
+        overdue_only = False
+        due_today_only = False
+
         if filter_choice == "2":
             status = TaskStatus.PENDING
         elif filter_choice == "3":
             status = TaskStatus.COMPLETED
+        elif filter_choice == "4":
+            overdue_only = True
+        elif filter_choice == "5":
+            due_today_only = True
 
         try:
-            tasks = self._task_service.list_tasks(self._current_user.id, status=status)
+            tasks = self._task_service.list_tasks(
+                self._current_user.id,
+                status=status,
+                overdue_only=overdue_only,
+                due_today_only=due_today_only,
+            )
             if not tasks:
-                print("No tasks found.")
+                print("No tasks found matching criteria.")
                 return
 
             print(f"\n--- Tasks ({len(tasks)}) ---")
             for t in tasks:
                 badge = "[X]" if t.is_completed else "[ ]"
+                prio_badge = f"[{t.priority.value}]"
                 due = f" (Due: {t.due_date.strftime('%Y-%m-%d')})" if t.due_date else ""
-                print(f"  {badge} #{t.id} - {t.title}{due}")
+                alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
+                print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                 if t.description:
                     print(f"       Description: {t.description}")
         except TodoDomainError as err:
@@ -148,7 +164,7 @@ class TodoCLI:
         print("\n--- Add Task ---")
         title = input("Task Title: ").strip()
         description = input("Description (optional): ").strip()
-        due_date_str = input("Due Date (YYYY-MM-DD, optional): ").strip()
+        due_date_str = input("Due Date (YYYY-MM-DD or MM/DD/YYYY, optional): ").strip()
 
         due_date: datetime | None = None
         if due_date_str:
@@ -162,14 +178,25 @@ class TodoCLI:
                 print("Invalid date format. Expected YYYY-MM-DD or MM/DD/YYYY.")
                 return
 
+        print("Priority: 1=Low, 2=Medium, 3=High, 4=Urgent [default: 2]")
+        prio_choice = input("Choice [1-4]: ").strip()
+        priority_map = {
+            "1": Priority.LOW,
+            "2": Priority.MEDIUM,
+            "3": Priority.HIGH,
+            "4": Priority.URGENT,
+        }
+        priority = priority_map.get(prio_choice, Priority.MEDIUM)
+
         try:
             task = self._task_service.create_task(
                 user_id=self._current_user.id,
                 title=title,
                 description=description,
                 due_date=due_date,
+                priority=priority,
             )
-            print(f"Task created successfully! (ID: #{task.id})")
+            print(f"Task created successfully! (ID: #{task.id}, Priority: {task.priority.value})")
         except TodoDomainError as err:
             print(f"Error: {err}")
 

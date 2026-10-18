@@ -1,6 +1,6 @@
 [project]
 name = "todo-app"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Clean Architecture / Ports and Adapters TODO application in Python"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -11,13 +11,47 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
     "ruff>=0.3.0",
+    "mypy>=1.9.0",
 ]
+
+[project.scripts]
+todo = "app:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+addopts = "--cov=todo --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["src/todo"]
+omit = [
+    "src/todo/presentation/cli.py",  # Exclude interactive terminal prompt loop from coverage
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "pass",
+    "\\.\\.\\.",
+]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+strict = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true

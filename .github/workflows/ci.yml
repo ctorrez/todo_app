@@ -30,6 +30,10 @@ jobs:
       run: |
         ruff check src tests
 
-    - name: Run tests with pytest
+    - name: Type check with mypy
       run: |
-        pytest -v
+        mypy src
+
+    - name: Run tests with pytest and coverage
+      run: |
+        pytest -v --cov=todo --cov-report=term-missing

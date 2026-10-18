@@ -7,7 +7,7 @@ from todo.domain.exceptions import (
     UserAlreadyExistsError,
     UserNotFoundError,
 )
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 
 
 class UserService:
@@ -55,9 +55,9 @@ class TaskService:
         title: str,
         description: str = "",
         due_date: datetime | None = None,
+        priority: Priority = Priority.MEDIUM,
     ) -> Task:
         """Create a new task for an existing user."""
-        # Ensure user exists before creating task
         user = self._user_repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(f"Cannot create task: User {user_id} does not exist.")
@@ -67,6 +67,7 @@ class TaskService:
             title=title,
             description=description,
             due_date=due_date,
+            priority=priority,
         )
         return self._task_repo.save(task)
 
@@ -78,13 +79,24 @@ class TaskService:
         return task
 
     def list_tasks(
-        self, user_id: int, status: TaskStatus | None = None
+        self,
+        user_id: int,
+        status: TaskStatus | None = None,
+        priority: Priority | None = None,
+        overdue_only: bool = False,
+        due_today_only: bool = False,
     ) -> list[Task]:
-        """List tasks belonging to a user, optionally filtered by status."""
+        """List tasks belonging to a user, optionally filtered."""
         user = self._user_repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(f"Cannot list tasks: User {user_id} does not exist.")
-        return self._task_repo.list_by_user(user_id, status=status)
+        return self._task_repo.list_by_user(
+            user_id=user_id,
+            status=status,
+            priority=priority,
+            overdue_only=overdue_only,
+            due_today_only=due_today_only,
+        )
 
     def complete_task(self, task_id: int) -> Task:
         """Mark a task as completed."""

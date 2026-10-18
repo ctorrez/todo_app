@@ -14,6 +14,13 @@ class TaskStatus(str, Enum):
     COMPLETED = "COMPLETED"
 
 
+class Priority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
+
 @dataclass
 class User:
     """User entity."""
@@ -46,6 +53,7 @@ class Task:
     title: str
     description: str = ""
     due_date: datetime | None = None
+    priority: Priority = Priority.MEDIUM
     status: TaskStatus = TaskStatus.PENDING
     id: int | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -60,6 +68,29 @@ class Task:
     @property
     def is_completed(self) -> bool:
         return self.status == TaskStatus.COMPLETED
+
+    @property
+    def is_overdue(self) -> bool:
+        """Return True if pending and due date has passed.
+
+        If due_date is date-only (00:00:00), it is overdue after the due day has ended.
+        """
+        if self.is_completed or self.due_date is None:
+            return False
+        now_utc = datetime.now(UTC)
+        due_utc = self.due_date if self.due_date.tzinfo else self.due_date.replace(tzinfo=UTC)
+        if due_utc.hour == 0 and due_utc.minute == 0 and due_utc.second == 0 and due_utc.microsecond == 0:
+            return due_utc.date() < now_utc.date()
+        return due_utc < now_utc
+
+    @property
+    def is_due_today(self) -> bool:
+        """Return True if pending and due date matches today (UTC)."""
+        if self.is_completed or self.due_date is None:
+            return False
+        now_date = datetime.now(UTC).date()
+        due_date = self.due_date.date()
+        return due_date == now_date
 
     def complete(self, at: datetime | None = None) -> None:
         """Mark task as completed."""

@@ -1,10 +1,17 @@
 """SQLAlchemy database models and session setup."""
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, create_engine
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+from sqlalchemy import DateTime, Engine, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    Session,
+    mapped_column,
+    relationship,
+    sessionmaker,
+)
 
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 
 
 class Base(DeclarativeBase):
@@ -51,6 +58,7 @@ class TaskModel(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    priority: Mapped[str] = mapped_column(String(20), default=Priority.MEDIUM.value, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default=TaskStatus.PENDING.value, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), nullable=False
@@ -66,6 +74,7 @@ class TaskModel(Base):
             title=self.title,
             description=self.description,
             due_date=self.due_date,
+            priority=Priority(self.priority),
             status=TaskStatus(self.status),
             created_at=self.created_at,
             completed_at=self.completed_at,
@@ -79,22 +88,23 @@ class TaskModel(Base):
             title=task.title,
             description=task.description,
             due_date=task.due_date,
+            priority=task.priority.value,
             status=task.status.value,
             created_at=task.created_at,
             completed_at=task.completed_at,
         )
 
 
-def build_engine(database_url: str = "sqlite:///todo.db", echo: bool = False):
+def build_engine(database_url: str = "sqlite:///todo.db", echo: bool = False) -> Engine:
     """Build SQLAlchemy engine."""
     return create_engine(database_url, echo=echo)
 
 
-def build_session_factory(engine):
+def build_session_factory(engine: Engine) -> sessionmaker[Session]:
     """Build sessionmaker bound to engine."""
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def init_database(engine) -> None:
+def init_database(engine: Engine) -> None:
     """Create all tables in database if not present."""
     Base.metadata.create_all(engine)

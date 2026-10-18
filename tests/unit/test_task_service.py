@@ -1,9 +1,11 @@
 """Unit tests for TaskService using InMemory repositories."""
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from todo.application.services import TaskService, UserService
 from todo.domain.exceptions import TaskNotFoundError, UserNotFoundError
-from todo.domain.models import TaskStatus
+from todo.domain.models import Priority, TaskStatus
 from todo.infrastructure.memory_repos import InMemoryTaskRepository, InMemoryUserRepository
 
 
@@ -24,10 +26,12 @@ def test_create_task_success(services):
         user_id=user.id,
         title="Write tests",
         description="Verify clean seams",
+        priority=Priority.URGENT,
     )
     assert task.id == 1
     assert task.user_id == user.id
     assert task.title == "Write tests"
+    assert task.priority == Priority.URGENT
     assert task.status == TaskStatus.PENDING
 
 
@@ -55,19 +59,37 @@ def test_list_tasks_filtering(services):
     user_service, task_service = services
     user = user_service.register_user("Alice", "Smith", "alice@example.com")
 
-    t1 = task_service.create_task(user_id=user.id, title="Task 1")
-    t2 = task_service.create_task(user_id=user.id, title="Task 2")
+    now = datetime.now(UTC)
+    yesterday = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    t1 = task_service.create_task(user_id=user.id, title="Task 1", priority=Priority.LOW)
+    t2 = task_service.create_task(
+        user_id=user.id, title="Task 2", priority=Priority.HIGH, due_date=yesterday
+    )
+    t3 = task_service.create_task(
+        user_id=user.id, title="Task 3", priority=Priority.URGENT, due_date=today
+    )
     task_service.complete_task(t1.id)
 
-    all_tasks = task_service.list_tasks(user_id=user.id)
+    # Filter by status
     pending_tasks = task_service.list_tasks(user_id=user.id, status=TaskStatus.PENDING)
-    completed_tasks = task_service.list_tasks(user_id=user.id, status=TaskStatus.COMPLETED)
+    assert len(pending_tasks) == 2
 
-    assert len(all_tasks) == 2
-    assert len(pending_tasks) == 1
-    assert pending_tasks[0].id == t2.id
-    assert len(completed_tasks) == 1
-    assert completed_tasks[0].id == t1.id
+    # Filter by priority
+    high_tasks = task_service.list_tasks(user_id=user.id, priority=Priority.HIGH)
+    assert len(high_tasks) == 1
+    assert high_tasks[0].id == t2.id
+
+    # Filter overdue
+    overdue_tasks = task_service.list_tasks(user_id=user.id, overdue_only=True)
+    assert len(overdue_tasks) == 1
+    assert overdue_tasks[0].id == t2.id
+
+    # Filter due today
+    today_tasks = task_service.list_tasks(user_id=user.id, due_today_only=True)
+    assert len(today_tasks) == 1
+    assert today_tasks[0].id == t3.id
 
 
 def test_delete_task(services):

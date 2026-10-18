@@ -1,7 +1,7 @@
 """Application ports (interfaces for outbound adapters)."""
 from abc import ABC, abstractmethod
 
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.models import Priority, Task, TaskStatus, User
 
 
 class UserRepository(ABC):
@@ -41,9 +41,14 @@ class TaskRepository(ABC):
 
     @abstractmethod
     def list_by_user(
-        self, user_id: int, status: TaskStatus | None = None
+        self,
+        user_id: int,
+        status: TaskStatus | None = None,
+        priority: Priority | None = None,
+        overdue_only: bool = False,
+        due_today_only: bool = False,
     ) -> list[Task]:
-        """List tasks belonging to a user, optionally filtered by status."""
+        """List tasks belonging to a user, optionally filtered by status, priority, or due dates."""
 
     @abstractmethod
     def delete(self, task_id: int) -> bool:

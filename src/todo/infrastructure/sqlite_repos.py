@@ -5,7 +5,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from todo.application.ports import TaskRepository, UserRepository
-from todo.domain.models import Task, TaskStatus, User
+from todo.domain.exceptions import TaskNotFoundError, UserNotFoundError
+from todo.domain.models import Priority, Task, TaskStatus, User
 from todo.infrastructure.db import TaskModel, UserModel
 
 
@@ -23,11 +24,13 @@ class SqlAlchemyUserRepository(UserRepository):
                 session.flush()
                 user.id = db_user.id
             else:
-                db_user = session.get(UserModel, user.id)
-                if db_user:
-                    db_user.first_name = user.first_name
-                    db_user.last_name = user.last_name
-                    db_user.email = user.email
+                existing_user = session.get(UserModel, user.id)
+                if existing_user is None:
+                    raise UserNotFoundError(f"User with ID {user.id} not found.")
+                existing_user.first_name = user.first_name
+                existing_user.last_name = user.last_name
+                existing_user.email = user.email
+                db_user = existing_user
             return db_user.to_domain()
 
     def get_by_id(self, user_id: int) -> User | None:
@@ -67,13 +70,16 @@ class SqlAlchemyTaskRepository(TaskRepository):
                 session.flush()
                 task.id = db_task.id
             else:
-                db_task = session.get(TaskModel, task.id)
-                if db_task:
-                    db_task.title = task.title
-                    db_task.description = task.description
-                    db_task.due_date = task.due_date
-                    db_task.status = task.status.value
-                    db_task.completed_at = task.completed_at
+                existing_task = session.get(TaskModel, task.id)
+                if existing_task is None:
+                    raise TaskNotFoundError(f"Task with ID {task.id} not found.")
+                existing_task.title = task.title
+                existing_task.description = task.description
+                existing_task.due_date = task.due_date
+                existing_task.priority = task.priority.value
+                existing_task.status = task.status.value
+                existing_task.completed_at = task.completed_at
+                db_task = existing_task
             return db_task.to_domain()
 
     def get_by_id(self, task_id: int) -> Task | None:
@@ -82,15 +88,27 @@ class SqlAlchemyTaskRepository(TaskRepository):
             return db_task.to_domain() if db_task else None
 
     def list_by_user(
-        self, user_id: int, status: TaskStatus | None = None
+        self,
+        user_id: int,
+        status: TaskStatus | None = None,
+        priority: Priority | None = None,
+        overdue_only: bool = False,
+        due_today_only: bool = False,
     ) -> list[Task]:
         with self._session_factory() as session:
             stmt = select(TaskModel).where(TaskModel.user_id == user_id)
             if status is not None:
                 stmt = stmt.where(TaskModel.status == status.value)
+            if priority is not None:
+                stmt = stmt.where(TaskModel.priority == priority.value)
             stmt = stmt.order_by(TaskModel.created_at.desc())
             db_tasks = session.execute(stmt).scalars().all()
-            return [t.to_domain() for t in db_tasks]
+            domain_tasks = [t.to_domain() for t in db_tasks]
+            if overdue_only:
+                domain_tasks = [t for t in domain_tasks if t.is_overdue]
+            if due_today_only:
+                domain_tasks = [t for t in domain_tasks if t.is_due_today]
+            return domain_tasks
 
     def delete(self, task_id: int) -> bool:
         with self._session_factory() as session, session.begin():

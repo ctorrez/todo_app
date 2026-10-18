@@ -42,13 +42,15 @@ def bootstrap() -> TodoCLI:
     return TodoCLI(user_service=user_service, task_service=task_service)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Application main entrypoint."""
     user_service, task_service = bootstrap_services()
-
-    # If command line arguments provided -> route to non-interactive / agent runner
     if len(sys.argv) > 1:
         sys.exit(run_command(sys.argv[1:], user_service, task_service))
     else:
-        # No arguments -> launch interactive human menu
         cli = TodoCLI(user_service=user_service, task_service=task_service)
         cli.run()
+
+
+if __name__ == "__main__":
+    main()
