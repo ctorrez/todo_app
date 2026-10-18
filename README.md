@@ -78,7 +78,8 @@ todo_app/
 │       │   ├── sqlite_repos.py    # Production SQLite repositories
 │       │   └── memory_repos.py    # In-memory repositories for tests
 │       └── presentation/          # Inbound adapters (UI)
-│           └── cli.py             # User-friendly console interface
+│           ├── cli.py             # Interactive menu for humans
+│           └── command_handler.py # Non-interactive & JSON interface for AI agents
 ├── tests/
 │   ├── unit/                      # Blazing-fast unit tests (In-Memory)
 │   └── integration/               # Integration tests (SQLite)
@@ -111,8 +112,33 @@ pip install -r requirements.txt
 
 ### 3. Run the Application
 
+#### Interactive Mode (for humans)
 ```powershell
 python app.py
+```
+
+#### Non-Interactive & AI Agent Mode (JSON output)
+AI agents (e.g. Antigravity `agy`) or automated scripts can run commands with subcommands and `--json`:
+
+```powershell
+# List registered users
+python app.py users list --json
+
+# Register a user
+python app.py users add --first Ada --last Lovelace --email ada@example.com --json
+
+# Add a task with due date (supports YYYY-MM-DD or MM/DD/YYYY)
+python app.py tasks add --title "Publish github profile" --due 10/18/2026 --json
+
+# List tasks (all, pending, or completed)
+python app.py tasks list --status pending --json
+
+# Complete or reopen a task
+python app.py tasks complete 1 --json
+python app.py tasks reopen 1 --json
+
+# Delete a task
+python app.py tasks delete 1 --json
 ```
 
 ---
@@ -135,7 +161,8 @@ ruff check src tests
 
 - **User Registration**: Register users with email uniqueness and format validation.
 - **User Switching**: Switch active user session.
-- **Task Management**: Create tasks with optional description and due date.
+- **Task Management**: Create tasks with optional description and due date (flexible parsing: YYYY-MM-DD, MM/DD/YYYY).
 - **Task Filtering**: View all, pending, or completed tasks.
 - **Task Completion**: Complete, reopen, or delete tasks.
+- **Agent Integration**: Non-interactive CLI with structured JSON responses for LLMs and automation.
 - **Error Handling**: Graceful domain error handling with user-friendly messages.

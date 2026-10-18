@@ -1,9 +1,10 @@
 """Main application entrypoint and Composition Root.
 
 Wires infrastructure, application use cases, and presentation layers.
+Supports both interactive CLI for humans and non-interactive/JSON commands for AI agents.
 """
-import sys
 from pathlib import Path
+import sys
 
 # Ensure src/ is on python search path when running `python app.py`
 SRC_DIR = Path(__file__).resolve().parent / "src"
@@ -14,10 +15,11 @@ from todo.application.services import TaskService, UserService
 from todo.infrastructure.db import build_engine, build_session_factory, init_database
 from todo.infrastructure.sqlite_repos import SqlAlchemyTaskRepository, SqlAlchemyUserRepository
 from todo.presentation.cli import TodoCLI
+from todo.presentation.command_handler import run_command
 
 
-def bootstrap() -> TodoCLI:
-    """Composition Root: Wire dependencies together."""
+def bootstrap_services() -> tuple[UserService, TaskService]:
+    """Composition Root: Wire domain, infrastructure, and application services."""
     # 1. Infrastructure setup
     engine = build_engine("sqlite:///todo.db")
     init_database(engine)
@@ -31,10 +33,22 @@ def bootstrap() -> TodoCLI:
     user_service = UserService(user_repo=user_repo)
     task_service = TaskService(task_repo=task_repo, user_repo=user_repo)
 
-    # 4. Presentation
+    return user_service, task_service
+
+
+def bootstrap() -> TodoCLI:
+    """Convenience helper returning the interactive CLI."""
+    user_service, task_service = bootstrap_services()
     return TodoCLI(user_service=user_service, task_service=task_service)
 
 
 if __name__ == "__main__":
-    cli = bootstrap()
-    cli.run()
+    user_service, task_service = bootstrap_services()
+
+    # If command line arguments provided -> route to non-interactive / agent runner
+    if len(sys.argv) > 1:
+        sys.exit(run_command(sys.argv[1:], user_service, task_service))
+    else:
+        # No arguments -> launch interactive human menu
+        cli = TodoCLI(user_service=user_service, task_service=task_service)
+        cli.run()
