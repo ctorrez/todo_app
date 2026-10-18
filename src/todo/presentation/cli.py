@@ -152,10 +152,14 @@ class TodoCLI:
 
         due_date: datetime | None = None
         if due_date_str:
-            try:
-                due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-            except ValueError:
-                print("Invalid date format. Expected YYYY-MM-DD.")
+            for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"):
+                try:
+                    due_date = datetime.strptime(due_date_str, fmt)
+                    break
+                except ValueError:
+                    continue
+            if due_date is None:
+                print("Invalid date format. Expected YYYY-MM-DD or MM/DD/YYYY.")
                 return
 
         try:
