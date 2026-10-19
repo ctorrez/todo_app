@@ -30,10 +30,15 @@ class OllamaTaskParser(TaskParserPort):
             "You are an expert task parser. Extract structured task data from natural language.\n"
             f"Reference Current Date: {ref_str}.\n"
             "Calculate all relative dates (e.g. 'tomorrow', 'next Friday', 'in 3 days') relative to Reference Current Date.\n"
-            "Return ONLY a JSON object with this exact structure:\n"
+            "Rules:\n"
+            "1. title: Clean, concise summary. Strip command prefixes like 'add task to', 'remind me to'.\n"
+            "2. description: Any additional notes, location, or details. If no separate details exist, return empty string \"\" (never repeat the title).\n"
+            "3. priority: Default to MEDIUM. Use HIGH for doctor visits, meetings, or important deadlines. Use URGENT for emergencies or ASAP. Use LOW for casual errands.\n"
+            "4. due_date: Format as YYYY-MM-DD or null.\n"
+            "Return ONLY a JSON object:\n"
             "{\n"
-            '  "title": "string (concise task title)",\n'
-            '  "description": "string (details, context or empty string)",\n'
+            '  "title": "string",\n'
+            '  "description": "string",\n'
             '  "due_date": "YYYY-MM-DD or null",\n'
             '  "priority": "LOW | MEDIUM | HIGH | URGENT"\n'
             "}"
@@ -75,6 +80,9 @@ class OllamaTaskParser(TaskParserPort):
 
         title = str(result.get("title", "")).strip() or text.strip()
         description = str(result.get("description", "")).strip()
+        # Avoid redundant descriptions that just duplicate the title
+        if description.lower() == title.lower():
+            description = ""
 
         # Parse due date
         due_date: datetime | None = None
