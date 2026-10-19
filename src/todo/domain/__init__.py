@@ -6,9 +6,10 @@ from todo.domain.exceptions import (
     UserNotFoundError,
     ValidationError,
 )
-from todo.domain.models import Priority, Task, TaskStatus, User
+from todo.domain.models import ParsedTask, Priority, Task, TaskStatus, User
 
 __all__ = [
+    "ParsedTask",
     "Priority",
     "Task",
     "TaskNotFoundError",

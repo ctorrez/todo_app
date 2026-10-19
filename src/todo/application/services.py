@@ -1,7 +1,7 @@
 """Application use-case services orchestrating domain logic and ports."""
 from datetime import datetime
 
-from todo.application.ports import TaskRepository, UserRepository
+from todo.application.ports import TaskParserPort, TaskRepository, UserRepository
 from todo.domain.exceptions import (
     TaskNotFoundError,
     UserAlreadyExistsError,
@@ -70,6 +70,23 @@ class TaskService:
             priority=priority,
         )
         return self._task_repo.save(task)
+
+    def create_task_from_text(
+        self,
+        user_id: int,
+        text: str,
+        parser: TaskParserPort,
+        reference_date: datetime | None = None,
+    ) -> Task:
+        """Create a task by parsing natural language using a TaskParserPort."""
+        parsed = parser.parse(text, reference_date=reference_date)
+        return self.create_task(
+            user_id=user_id,
+            title=parsed.title,
+            description=parsed.description,
+            due_date=parsed.due_date,
+            priority=parsed.priority,
+        )
 
     def get_task(self, task_id: int) -> Task:
         """Retrieve task by ID or raise TaskNotFoundError."""

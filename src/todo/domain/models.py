@@ -22,6 +22,21 @@ class Priority(str, Enum):
 
 
 @dataclass
+class ParsedTask:
+    """Structured task data extracted from natural language input."""
+    title: str
+    description: str = ""
+    due_date: datetime | None = None
+    priority: Priority = Priority.MEDIUM
+
+    def __post_init__(self) -> None:
+        self.title = self.title.strip()
+        self.description = self.description.strip()
+        if not self.title:
+            raise ValidationError("Parsed task title cannot be empty.")
+
+
+@dataclass
 class User:
     """User entity."""
     first_name: str

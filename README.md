@@ -18,35 +18,42 @@ This project separates business rules from frameworks and I/O. The domain and ap
 
 ```mermaid
 flowchart TD
-    subgraph Presentation ["Presentation Layer"]
+    subgraph Presentation ["Presentation Layer (Inbound Adapters)"]
         CLI["Interactive Menu (cli.py)"]
         AgentCLI["Command Handler & JSON (command_handler.py)"]
     end
 
     subgraph Application ["Application Layer (Use Cases & Ports)"]
         Services["Services / Use Cases\n(UserService, TaskService)"]
-        Ports["Repository Interfaces\n(UserRepository, TaskRepository)"]
+        RepoPorts["Repository Ports\n(UserRepository, TaskRepository)"]
+        AIPort["AI Parser Port\n(TaskParserPort)"]
     end
 
     subgraph Domain ["Domain Layer (Core)"]
-        Entities["Domain Models\n(User, Task, Priority, TaskStatus)"]
+        Entities["Domain Models\n(User, Task, ParsedTask, Priority, TaskStatus)"]
         Exceptions["Domain Exceptions\n(UserNotFoundError, TaskNotFoundError)"]
     end
 
-    subgraph Infrastructure ["Infrastructure Layer (Adapters)"]
+    subgraph Infrastructure ["Infrastructure Layer (Outbound Adapters)"]
         SqlRepo["SQLAlchemy 2.0 Repositories\n(SqlAlchemyUserRepository, SqlAlchemyTaskRepository)"]
         MemRepo["In-Memory Repositories (for fast tests)\n(InMemoryUserRepository, InMemoryTaskRepository)"]
+        OllamaAdapter["Local AI Adapter\n(OllamaTaskParser - llama3.2:1b)"]
+        MockAIAdapter["Mock AI Adapter\n(MockTaskParser)"]
         DB[(SQLite / Database Engine)]
     end
 
     CLI --> Services
     AgentCLI --> Services
     Services --> Entities
-    Services --> Ports
-    SqlRepo -.->|implements| Ports
-    MemRepo -.->|implements| Ports
+    Services --> RepoPorts
+    Services --> AIPort
+    SqlRepo -.->|implements| RepoPorts
+    MemRepo -.->|implements| RepoPorts
+    OllamaAdapter -.->|implements| AIPort
+    MockAIAdapter -.->|implements| AIPort
     SqlRepo --> DB
     SqlRepo --> Entities
+    OllamaAdapter --> Entities
 ```
 
 For an in-depth breakdown of design decisions, boundaries, and SOLID principles, see [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -56,9 +63,10 @@ For an in-depth breakdown of design decisions, boundaries, and SOLID principles,
 ## Key Highlights
 
 - **Light Clean Architecture**: Eliminates enterprise boilerplate while strictly enforcing the Dependency Rule.
+- **Local AI Natural Language Extraction**: Integrates local self-hosted SLMs (Meta Llama 3.2 1B via Ollama) with 100% privacy and zero cloud fees.
 - **Rich Domain Modeling (DDD)**: Encapsulated business rules in entities (`Task.is_overdue`, `Task.is_due_today`, `Priority` enum, state transitions).
-- **Clean Seams**: Abstract repository ports (`UserRepository`, `TaskRepository`) decouple use cases from persistence details.
-- **Mock-Free Unit Testing**: In-memory repository adapters allow 100% test coverage of domain logic and use cases in fractions of a second without mock libraries.
+- **Clean Seams**: Abstract repository and AI parser ports (`UserRepository`, `TaskRepository`, `TaskParserPort`) decouple use cases from external technology.
+- **Mock-Free Unit Testing**: In-memory repository adapters and mock AI parsers allow 100% test coverage of domain logic and use cases in fractions of a second without mock libraries or external API calls.
 - **Modern SQLAlchemy 2.0**: Declarative ORM models mapped cleanly to/from pure domain dataclasses.
 - **Dual Presentation**: Interactive menu for humans and non-interactive JSON subcommands for AI agents (e.g. Antigravity `agy`).
 - **Composition Root**: Centralized bootstrap in [`app.py`](app.py) where dependencies are injected.
@@ -74,20 +82,23 @@ todo_app/
 ├── src/
 │   └── todo/
 │       ├── domain/                # Pure business logic (Zero dependencies)
-│       │   ├── models.py          # User, Task, Priority, TaskStatus dataclasses
+│       │   ├── models.py          # User, Task, ParsedTask, Priority dataclasses
 │       │   └── exceptions.py      # Domain exceptions
 │       ├── application/           # Use cases & abstract ports
-│       │   ├── ports.py           # UserRepository & TaskRepository ABCs
+│       │   ├── ports.py           # UserRepository, TaskRepository, TaskParserPort
 │       │   └── services.py        # UserService & TaskService
-│       ├── infrastructure/        # Outbound adapters (persistence)
+│       ├── infrastructure/        # Outbound adapters (persistence & AI)
 │       │   ├── db.py              # SQLAlchemy 2.0 models & session factory
 │       │   ├── sqlite_repos.py    # Production SQLite repositories
-│       │   └── memory_repos.py    # In-memory repositories for tests
+│       │   ├── memory_repos.py    # In-memory repositories for tests
+│       │   └── ai/                # AI adapters
+│       │       ├── ollama_parser.py # Local Ollama Llama 3.2 1B adapter
+│       │       └── mock_parser.py   # Deterministic mock parser for tests
 │       └── presentation/          # Inbound adapters (UI)
 │           ├── cli.py             # Interactive menu for humans
 │           └── command_handler.py # Non-interactive & JSON interface for AI agents
 ├── tests/
-│   ├── unit/                      # Blazing-fast unit tests (In-Memory)
+│   ├── unit/                      # Blazing-fast unit tests (In-Memory + Mock AI)
 │   └── integration/               # Integration tests (SQLite)
 ├── app.py                         # Composition Root & application entrypoint
 ├── pyproject.toml                 # Modern Python build & tool configuration
@@ -147,6 +158,20 @@ python app.py tasks reopen 1 --json
 
 # Delete a task
 python app.py tasks delete 1 --json
+```
+
+#### Local AI Natural Language Ingestion (Powered by Ollama)
+Extract structured tasks directly from natural language using 100% private, local LLMs (`llama3.2:1b`):
+
+```powershell
+# Preview what the local AI extracts (does not save to DB)
+python app.py ai parse "Urgent meeting with Sarah tomorrow at 2pm to review budget"
+
+# Automatically extract and save the task to the database
+python app.py ai add "Dentist appointment this Friday morning"
+
+# AI output as structured JSON for agents
+python app.py ai add "Dentist appointment this Friday morning" --json
 ```
 
 ---

@@ -5,9 +5,11 @@ import sys
 from datetime import datetime
 from typing import Any
 
+from todo.application.ports import TaskParserPort
 from todo.application.services import TaskService, UserService
 from todo.domain.exceptions import TodoDomainError
 from todo.domain.models import Priority, Task, TaskStatus, User
+from todo.infrastructure.ai.ollama_parser import OllamaTaskParser
 
 
 def parse_date(date_str: str | None) -> datetime | None:
@@ -136,11 +138,31 @@ def build_parser() -> argparse.ArgumentParser:
     u_add.add_argument("--email", required=True, help="Email address")
     u_add.add_argument("--json", action="store_true", help="Output result as JSON")
 
+    # --- ai subcommands ---
+    ai_parser = subparsers.add_parser("ai", help="AI-assisted features (natural language task ingestion)")
+    ai_sub = ai_parser.add_subparsers(dest="subcommand", required=True)
+
+    # ai add "Prompt"
+    ai_add = ai_sub.add_parser("add", help="Add a task using natural language and local Ollama")
+    ai_add.add_argument("prompt", help="Natural language description of the task")
+    ai_add.add_argument("--user-id", type=int, default=None, help="User ID (defaults to first user)")
+    ai_add.add_argument("--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)")
+    ai_add.add_argument("--json", action="store_true", help="Output result as JSON")
+
+    # ai parse "Prompt"
+    ai_parse = ai_sub.add_parser("parse", help="Preview AI extraction without saving to database")
+    ai_parse.add_argument("prompt", help="Natural language description of the task")
+    ai_parse.add_argument("--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)")
+    ai_parse.add_argument("--json", action="store_true", help="Output result as JSON")
+
     return parser
 
 
 def run_command(
-    argv: list[str], user_service: UserService, task_service: TaskService
+    argv: list[str],
+    user_service: UserService,
+    task_service: TaskService,
+    parser_override: TaskParserPort | None = None,
 ) -> int:
     """Execute command line arguments. Returns exit code (0 success, 1 error)."""
     parser = build_parser()
@@ -156,6 +178,10 @@ def run_command(
             return _handle_users_command(args, user_service, is_json)
         elif args.command == "tasks":
             return _handle_tasks_command(args, user_service, task_service, is_json)
+        elif args.command == "ai":
+            return _handle_ai_command(
+                args, user_service, task_service, is_json, parser_override=parser_override
+            )
         else:
             parser.print_help()
             return 1
@@ -280,6 +306,55 @@ def _handle_tasks_command(
             print(json.dumps({"status": "success", "data": {"deleted_id": args.task_id}}, indent=2))
         else:
             print(f"Task #{args.task_id} deleted successfully.")
+        return 0
+
+    return 1
+
+
+def _handle_ai_command(
+    args: argparse.Namespace,
+    user_service: UserService,
+    task_service: TaskService,
+    is_json: bool,
+    parser_override: TaskParserPort | None = None,
+) -> int:
+    parser = parser_override or OllamaTaskParser(model=args.model)
+
+    if args.subcommand == "parse":
+        parsed = parser.parse(args.prompt)
+        data = {
+            "title": parsed.title,
+            "description": parsed.description,
+            "due_date": parsed.due_date.isoformat() if parsed.due_date else None,
+            "priority": parsed.priority.value,
+        }
+        if is_json:
+            print(json.dumps({"status": "success", "data": data}, indent=2))
+        else:
+            print("AI Extracted Task Details (Preview - Not Saved):")
+            print(f"  Title:       {parsed.title}")
+            if parsed.description:
+                print(f"  Description: {parsed.description}")
+            due_str = parsed.due_date.strftime("%Y-%m-%d") if parsed.due_date else "None"
+            print(f"  Due Date:    {due_str}")
+            print(f"  Priority:    {parsed.priority.value}")
+        return 0
+
+    elif args.subcommand == "add":
+        user_id = _resolve_user_id(args.user_id, user_service)
+        task = task_service.create_task_from_text(
+            user_id=user_id,
+            text=args.prompt,
+            parser=parser,
+        )
+        if is_json:
+            print(json.dumps({"status": "success", "data": task_to_dict(task)}, indent=2))
+        else:
+            prio = f"[{task.priority.value}]"
+            due = f" (Due: {task.due_date.strftime('%Y-%m-%d')})" if task.due_date else ""
+            print(f"AI Task Created: #{task.id} {prio} - {task.title}{due}")
+            if task.description:
+                print(f"   Description: {task.description}")
         return 0
 
     return 1

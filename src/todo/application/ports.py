@@ -1,7 +1,8 @@
 """Application ports (interfaces for outbound adapters)."""
 from abc import ABC, abstractmethod
+from datetime import datetime
 
-from todo.domain.models import Priority, Task, TaskStatus, User
+from todo.domain.models import ParsedTask, Priority, Task, TaskStatus, User
 
 
 class UserRepository(ABC):
@@ -53,3 +54,11 @@ class TaskRepository(ABC):
     @abstractmethod
     def delete(self, task_id: int) -> bool:
         """Delete a task by ID. Returns True if deleted, False if not found."""
+
+
+class TaskParserPort(ABC):
+    """Abstract port for extracting structured task information from natural language."""
+
+    @abstractmethod
+    def parse(self, text: str, reference_date: datetime | None = None) -> ParsedTask:
+        """Parse raw text into a ParsedTask domain object."""
