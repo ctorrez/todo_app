@@ -46,21 +46,15 @@ irm https://ollama.com/install.ps1 | iex
 
 ---
 
-### Step 2: Verify Ollama Service & Path
+### Step 2: Verify Ollama Service
 
-In a new PowerShell window, verify the CLI is recognized:
+Verify the CLI is installed and running:
 
 ```powershell
 ollama --version
 ```
 
-*(If `ollama` is not yet recognized in an existing terminal session, use the absolute path or restart your terminal):*
-
-```powershell
-& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" list
-```
-
-You can also verify the local REST endpoint directly:
+Verify the local REST endpoint is active:
 
 ```powershell
 (Invoke-RestMethod -Uri "http://localhost:11434/api/tags").models
@@ -73,13 +67,13 @@ You can also verify the local REST endpoint directly:
 Download the lightweight `llama3.2:1b` model:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull llama3.2:1b
+ollama pull llama3.2:1b
 ```
 
 Once completed, confirm the model is available:
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" list
+ollama list
 ```
 
 Output:
