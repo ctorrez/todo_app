@@ -1,4 +1,5 @@
 """SQLAlchemy database models and session setup."""
+
 from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, Engine, ForeignKey, Integer, String, create_engine
@@ -20,6 +21,7 @@ class Base(DeclarativeBase):
 
 class UserModel(Base):
     """SQLAlchemy model for users table."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -51,15 +53,20 @@ class UserModel(Base):
 
 class TaskModel(Base):
     """SQLAlchemy model for tasks table."""
+
     __tablename__ = "tasks"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str] = mapped_column(String(1000), default="", nullable=False)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     priority: Mapped[str] = mapped_column(String(20), default=Priority.MEDIUM.value, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default=TaskStatus.PENDING.value, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), default=TaskStatus.PENDING.value, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), nullable=False
     )

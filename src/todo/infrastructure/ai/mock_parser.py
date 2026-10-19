@@ -1,4 +1,5 @@
 """Mock AI task parser for fast, deterministic unit testing."""
+
 import re
 from datetime import datetime
 
@@ -25,7 +26,9 @@ class MockTaskParser(TaskParserPort):
             priority = Priority.LOW
 
         # Simple title cleanup: remove leading urgency prefixes
-        title = re.sub(r"^(urgent|high priority|important)[:\s-]*", "", clean, flags=re.IGNORECASE).strip()
+        title = re.sub(
+            r"^(urgent|high priority|important)[:\s-]*", "", clean, flags=re.IGNORECASE
+        ).strip()
         if not title:
             title = clean
 

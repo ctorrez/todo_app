@@ -1,4 +1,5 @@
 """Unit tests for UserService using InMemoryUserRepository."""
+
 import pytest
 
 from todo.application.services import UserService

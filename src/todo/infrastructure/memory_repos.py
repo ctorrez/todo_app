@@ -1,4 +1,5 @@
 """In-memory implementation of repository ports for blazing-fast unit tests."""
+
 import copy
 
 from todo.application.ports import TaskRepository, UserRepository

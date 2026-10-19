@@ -1,4 +1,5 @@
 """Non-interactive CLI and Agent command router with JSON support."""
+
 import argparse
 import json
 import sys
@@ -95,7 +96,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     # tasks list
     t_list = tasks_sub.add_parser("list", help="List tasks")
-    t_list.add_argument("--user-id", type=int, default=None, help="User ID (defaults to first user)")
+    t_list.add_argument(
+        "--user-id", type=int, default=None, help="User ID (defaults to first user)"
+    )
     t_list.add_argument(
         "--status",
         choices=["all", "pending", "completed"],
@@ -108,7 +111,9 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Filter by priority (low, medium, high, urgent)",
     )
-    t_list.add_argument("--overdue", action="store_true", help="Filter pending tasks that are overdue")
+    t_list.add_argument(
+        "--overdue", action="store_true", help="Filter pending tasks that are overdue"
+    )
     t_list.add_argument("--due-today", action="store_true", help="Filter pending tasks due today")
     t_list.add_argument("--json", action="store_true", help="Output result as JSON")
 
@@ -157,20 +162,28 @@ def build_parser() -> argparse.ArgumentParser:
     u_add.add_argument("--json", action="store_true", help="Output result as JSON")
 
     # --- ai subcommands ---
-    ai_parser = subparsers.add_parser("ai", help="AI-assisted features (natural language task ingestion)")
+    ai_parser = subparsers.add_parser(
+        "ai", help="AI-assisted features (natural language task ingestion)"
+    )
     ai_sub = ai_parser.add_subparsers(dest="subcommand", required=True)
 
     # ai add "Prompt"
     ai_add = ai_sub.add_parser("add", help="Add a task using natural language and local Ollama")
     ai_add.add_argument("prompt", help="Natural language description of the task")
-    ai_add.add_argument("--user-id", type=int, default=None, help="User ID (defaults to first user)")
-    ai_add.add_argument("--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)")
+    ai_add.add_argument(
+        "--user-id", type=int, default=None, help="User ID (defaults to first user)"
+    )
+    ai_add.add_argument(
+        "--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)"
+    )
     ai_add.add_argument("--json", action="store_true", help="Output result as JSON")
 
     # ai parse "Prompt"
     ai_parse = ai_sub.add_parser("parse", help="Preview AI extraction without saving to database")
     ai_parse.add_argument("prompt", help="Natural language description of the task")
-    ai_parse.add_argument("--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)")
+    ai_parse.add_argument(
+        "--model", default="llama3.2:1b", help="Ollama model to use (default: llama3.2:1b)"
+    )
     ai_parse.add_argument("--json", action="store_true", help="Output result as JSON")
 
     return parser
@@ -216,15 +229,23 @@ def _resolve_user_id(requested_id: int | None, user_service: UserService) -> int
         return requested_id
     users = user_service.list_users()
     if not users or users[0].id is None:
-        raise TodoDomainError("No registered users found. Please create a user first via 'users add'.")
+        raise TodoDomainError(
+            "No registered users found. Please create a user first via 'users add'."
+        )
     return users[0].id
 
 
-def _handle_users_command(args: argparse.Namespace, user_service: UserService, is_json: bool) -> int:
+def _handle_users_command(
+    args: argparse.Namespace, user_service: UserService, is_json: bool
+) -> int:
     if args.subcommand == "list":
         users = user_service.list_users()
         if is_json:
-            print(json.dumps({"status": "success", "data": [user_to_dict(u) for u in users]}, indent=2))
+            print(
+                json.dumps(
+                    {"status": "success", "data": [user_to_dict(u) for u in users]}, indent=2
+                )
+            )
         else:
             if not users:
                 print("No users found.")
@@ -269,7 +290,11 @@ def _handle_tasks_command(
             due_today_only=args.due_today,
         )
         if is_json:
-            print(json.dumps({"status": "success", "data": [task_to_dict(t) for t in tasks]}, indent=2))
+            print(
+                json.dumps(
+                    {"status": "success", "data": [task_to_dict(t) for t in tasks]}, indent=2
+                )
+            )
         else:
             if not tasks:
                 print(f"No tasks found for user #{user_id}.")
@@ -279,7 +304,11 @@ def _handle_tasks_command(
                     badge = "[X]" if t.is_completed else "[ ]"
                     prio_badge = f"[{t.priority.value}]"
                     due = f" (Due: {format_datetime(t.due_date)})" if t.due_date else ""
-                    alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
+                    alert = (
+                        " [OVERDUE!]"
+                        if t.is_overdue
+                        else (" [DUE TODAY]" if t.is_due_today else "")
+                    )
                     print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                     if t.description:
                         print(f"       {t.description}")

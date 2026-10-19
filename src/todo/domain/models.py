@@ -1,4 +1,5 @@
 """Domain models (Entities and Value Objects) for the Todo App."""
+
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -24,6 +25,7 @@ class Priority(str, Enum):
 @dataclass
 class ParsedTask:
     """Structured task data extracted from natural language input."""
+
     title: str
     description: str = ""
     due_date: datetime | None = None
@@ -39,6 +41,7 @@ class ParsedTask:
 @dataclass
 class User:
     """User entity."""
+
     first_name: str
     last_name: str
     email: str
@@ -64,6 +67,7 @@ class User:
 @dataclass
 class Task:
     """Task entity representing a todo item belonging to a User."""
+
     user_id: int
     title: str
     description: str = ""
@@ -94,7 +98,12 @@ class Task:
             return False
         now_utc = datetime.now(UTC)
         due_utc = self.due_date if self.due_date.tzinfo else self.due_date.replace(tzinfo=UTC)
-        if due_utc.hour == 0 and due_utc.minute == 0 and due_utc.second == 0 and due_utc.microsecond == 0:
+        if (
+            due_utc.hour == 0
+            and due_utc.minute == 0
+            and due_utc.second == 0
+            and due_utc.microsecond == 0
+        ):
             return due_utc.date() < now_utc.date()
         return due_utc < now_utc
 

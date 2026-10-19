@@ -1,4 +1,5 @@
 """Unit tests for the non-interactive CLI / Agent command handler."""
+
 import json
 from datetime import UTC, datetime, timedelta
 
@@ -36,7 +37,17 @@ def test_users_add_and_list_json(capsys):
 
     # Add user
     code = run_command(
-        ["users", "add", "--first", "Ada", "--last", "Lovelace", "--email", "ada@example.com", "--json"],
+        [
+            "users",
+            "add",
+            "--first",
+            "Ada",
+            "--last",
+            "Lovelace",
+            "--email",
+            "ada@example.com",
+            "--json",
+        ],
         user_service,
         task_service,
     )

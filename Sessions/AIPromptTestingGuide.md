@@ -211,13 +211,13 @@ system_prompt = (
     "1. title: Clean, concise summary. Strip command prefixes like 'add task to', 'remind me to'.\n"
     "2. description: Strictly extractive. ONLY include notes or details explicitly written by the user. "
     "NEVER invent names, reasons, or facts not present in the input. "
-    "If no extra details exist beyond the task title, output empty string \"\".\n"
+    'If no extra details exist beyond the task title, output empty string "".\n'
     "3. priority: Default to MEDIUM. Use HIGH for doctor visits, meetings, or important deadlines. Use URGENT for emergencies or ASAP. Use LOW for casual errands.\n"
     "4. due_date: Format as YYYY-MM-DD or null.\n\n"
     "Examples:\n"
-    "User: \"Call mom tomorrow at 5pm\"\n"
+    'User: "Call mom tomorrow at 5pm"\n'
     'Output: {"title": "Call mom at 5pm", "description": "", "due_date": "YYYY-MM-DD", "priority": "MEDIUM"}\n\n'
-    "User: \"Schedule dentist visit on Friday at 3pm, bring insurance card and records\"\n"
+    'User: "Schedule dentist visit on Friday at 3pm, bring insurance card and records"\n'
     'Output: {"title": "Dentist visit at 3pm", "description": "Bring insurance card and records", "due_date": "YYYY-MM-DD", "priority": "HIGH"}\n\n'
     "Return ONLY a JSON object:\n"
     "{\n"

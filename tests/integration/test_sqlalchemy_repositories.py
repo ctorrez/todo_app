@@ -1,4 +1,5 @@
 """Integration tests for SQLAlchemy repositories against SQLite."""
+
 from datetime import UTC, datetime, timedelta
 
 import pytest

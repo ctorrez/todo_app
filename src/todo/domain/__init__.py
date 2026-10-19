@@ -1,4 +1,5 @@
 """Domain layer containing pure business models and domain exceptions."""
+
 from todo.domain.exceptions import (
     TaskNotFoundError,
     TodoDomainError,

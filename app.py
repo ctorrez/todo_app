@@ -3,8 +3,9 @@
 Wires infrastructure, application use cases, and presentation layers.
 Supports both interactive CLI for humans and non-interactive/JSON commands for AI agents.
 """
-from pathlib import Path
+
 import sys
+from pathlib import Path
 
 # Ensure src/ is on python search path when running `python app.py`
 SRC_DIR = Path(__file__).resolve().parent / "src"

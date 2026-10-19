@@ -1,4 +1,5 @@
 """Unit tests for Domain Models."""
+
 from datetime import UTC, datetime, timedelta
 
 import pytest

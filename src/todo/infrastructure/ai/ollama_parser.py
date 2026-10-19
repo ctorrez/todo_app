@@ -1,4 +1,5 @@
 """Ollama local AI adapter implementing TaskParserPort."""
+
 import json
 import urllib.error
 import urllib.request
@@ -34,16 +35,16 @@ class OllamaTaskParser(TaskParserPort):
             "1. title: Clean, concise summary. Strip command prefixes like 'add task to', 'remind me to'.\n"
             "2. description: Strictly extractive. ONLY include notes or details explicitly written by the user. "
             "NEVER rephrase, explain, or duplicate the task title. NEVER invent words or facts. "
-            "If the input is just a single task with no separate notes, description MUST be empty string \"\".\n"
+            'If the input is just a single task with no separate notes, description MUST be empty string "".\n'
             "3. priority: Default to MEDIUM. Use HIGH for doctor visits, meetings, or important deadlines. Use URGENT for emergencies or ASAP. Use LOW for casual errands.\n"
             "4. due_date: If a specific time of day is mentioned (e.g. '2pm', '2:30 pm', '14:00'), format as 'YYYY-MM-DD HH:MM' in 24-hour time. "
             "If only a date is mentioned, format as 'YYYY-MM-DD'. If no date or time is mentioned, format as null.\n\n"
             "Examples:\n"
-            "User: \"Dentist appointment tomorrow at 2:30pm\"\n"
+            'User: "Dentist appointment tomorrow at 2:30pm"\n'
             'Output: {"title": "Dentist appointment", "description": "", "due_date": "YYYY-MM-DD 14:30", "priority": "HIGH"}\n\n'
-            "User: \"Schedule team sync on Friday at 3:30pm, bring insurance card and records\"\n"
+            'User: "Schedule team sync on Friday at 3:30pm, bring insurance card and records"\n'
             'Output: {"title": "Team sync", "description": "Bring insurance card and records", "due_date": "YYYY-MM-DD 15:30", "priority": "HIGH"}\n\n'
-            "User: \"Buy almond milk on Saturday\"\n"
+            'User: "Buy almond milk on Saturday"\n'
             'Output: {"title": "Buy almond milk", "description": "", "due_date": "YYYY-MM-DD", "priority": "LOW"}\n\n'
             "Return ONLY a JSON object:\n"
             "{\n"

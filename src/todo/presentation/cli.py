@@ -1,4 +1,5 @@
 """Interactive CLI presentation layer."""
+
 import sys
 from datetime import datetime
 
@@ -150,9 +151,15 @@ class TodoCLI:
                 prio_badge = f"[{t.priority.value}]"
                 due = ""
                 if t.due_date:
-                    due_fmt = "%Y-%m-%d %H:%M" if (t.due_date.hour != 0 or t.due_date.minute != 0) else "%Y-%m-%d"
+                    due_fmt = (
+                        "%Y-%m-%d %H:%M"
+                        if (t.due_date.hour != 0 or t.due_date.minute != 0)
+                        else "%Y-%m-%d"
+                    )
                     due = f" (Due: {t.due_date.strftime(due_fmt)})"
-                alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
+                alert = (
+                    " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
+                )
                 print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                 if t.description:
                     print(f"       Description: {t.description}")
@@ -167,7 +174,9 @@ class TodoCLI:
         print("\n--- Add Task ---")
         title = input("Task Title: ").strip()
         description = input("Description (optional): ").strip()
-        due_date_str = input("Due Date (YYYY-MM-DD [HH:MM] or MM/DD/YYYY [HH:MM], optional): ").strip()
+        due_date_str = input(
+            "Due Date (YYYY-MM-DD [HH:MM] or MM/DD/YYYY [HH:MM], optional): "
+        ).strip()
 
         due_date: datetime | None = None
         if due_date_str:

@@ -1,4 +1,5 @@
 """Application ports (interfaces for outbound adapters)."""
+
 from abc import ABC, abstractmethod
 from datetime import datetime
 

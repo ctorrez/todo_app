@@ -1,4 +1,5 @@
 """Concrete SQLAlchemy implementations of UserRepository and TaskRepository."""
+
 from collections.abc import Callable
 
 from sqlalchemy import func, select
