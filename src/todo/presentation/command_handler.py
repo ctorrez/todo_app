@@ -146,6 +146,25 @@ def build_parser() -> argparse.ArgumentParser:
     t_del.add_argument("task_id", type=int, help="Task ID")
     t_del.add_argument("--json", action="store_true", help="Output result as JSON")
 
+    # tasks search "Query"
+    t_search = tasks_sub.add_parser("search", help="Semantic vector search across tasks")
+    t_search.add_argument("query", help="Natural language search query")
+    t_search.add_argument(
+        "--user-id", type=int, default=None, help="User ID (defaults to first user)"
+    )
+    t_search.add_argument("--limit", type=int, default=5, help="Max results to return (default: 5)")
+    t_search.add_argument(
+        "--threshold", type=float, default=0.15, help="Minimum similarity threshold (default: 0.15)"
+    )
+    t_search.add_argument("--json", action="store_true", help="Output result as JSON")
+
+    # tasks reindex
+    t_reindex = tasks_sub.add_parser("reindex", help="Re-index all tasks in vector repository")
+    t_reindex.add_argument(
+        "--user-id", type=int, default=None, help="User ID (defaults to first user)"
+    )
+    t_reindex.add_argument("--json", action="store_true", help="Output result as JSON")
+
     # --- users subcommands ---
     users_parser = subparsers.add_parser("users", help="Manage users")
     users_sub = users_parser.add_subparsers(dest="subcommand", required=True)
@@ -353,6 +372,45 @@ def _handle_tasks_command(
             print(json.dumps({"status": "success", "data": {"deleted_id": args.task_id}}, indent=2))
         else:
             print(f"Task #{args.task_id} deleted successfully.")
+        return 0
+
+    elif args.subcommand == "search":
+        user_id = _resolve_user_id(args.user_id, user_service)
+        scored_tasks = task_service.search_tasks_semantic(
+            user_id=user_id,
+            query=args.query,
+            limit=args.limit,
+            threshold=args.threshold,
+        )
+        if is_json:
+            data = [
+                {"task": task_to_dict(st.task), "similarity_score": round(st.score, 4)}
+                for st in scored_tasks
+            ]
+            print(json.dumps({"status": "success", "data": data}, indent=2))
+        else:
+            if not scored_tasks:
+                print(f"No semantically similar tasks found for '{args.query}'.")
+            else:
+                print(f"Semantic Search Results for '{args.query}':")
+                for st in scored_tasks:
+                    t = st.task
+                    badge = "[X]" if t.is_completed else "[ ]"
+                    prio_badge = f"[{t.priority.value}]"
+                    due = f" (Due: {format_datetime(t.due_date)})" if t.due_date else ""
+                    match_pct = f"{int(st.score * 100)}%"
+                    print(f"  {badge} #{t.id} {prio_badge} [Match: {match_pct}] - {t.title}{due}")
+                    if t.description:
+                        print(f"       {t.description}")
+        return 0
+
+    elif args.subcommand == "reindex":
+        user_id = _resolve_user_id(args.user_id, user_service)
+        count = task_service.reindex_user_tasks(user_id=user_id)
+        if is_json:
+            print(json.dumps({"status": "success", "data": {"indexed_count": count}}, indent=2))
+        else:
+            print(f"Successfully indexed {count} tasks into the vector repository.")
         return 0
 
     return 1

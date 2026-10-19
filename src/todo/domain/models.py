@@ -125,3 +125,20 @@ class Task:
         """Reopen task back to pending."""
         self.status = TaskStatus.PENDING
         self.completed_at = None
+
+    def to_search_text(self) -> str:
+        """Composite text representation used for semantic vector indexing."""
+        if self.description:
+            return f"{self.title}. {self.description}"
+        return self.title
+
+
+# --- Domain Value Object ---
+
+
+@dataclass(frozen=True)
+class ScoredTask:
+    """A task paired with a similarity or relevance score (0.0 to 1.0)."""
+
+    task: Task
+    score: float

@@ -1,14 +1,14 @@
-"""Concrete SQLAlchemy implementations of UserRepository and TaskRepository."""
-
 from collections.abc import Callable
+from datetime import UTC, datetime
 
+import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from todo.application.ports import TaskRepository, UserRepository
+from todo.application.ports import TaskRepository, TaskVectorRepository, UserRepository, Vector
 from todo.domain.exceptions import TaskNotFoundError, UserNotFoundError
 from todo.domain.models import Priority, Task, TaskStatus, User
-from todo.infrastructure.db import TaskModel, UserModel
+from todo.infrastructure.db import TaskEmbeddingModel, TaskModel, UserModel
 
 
 class SqlAlchemyUserRepository(UserRepository):
@@ -118,3 +118,82 @@ class SqlAlchemyTaskRepository(TaskRepository):
                 session.delete(db_task)
                 return True
             return False
+
+
+class SqlAlchemyTaskVectorRepository(TaskVectorRepository):
+    """SQLAlchemy adapter implementing TaskVectorRepository using SQLite BLOB storage and NumPy cosine math."""
+
+    def __init__(self, session_factory: Callable[[], Session]) -> None:
+        self._session_factory = session_factory
+
+    def upsert_vector(self, task_id: int, user_id: int, vector: Vector) -> None:
+        self.upsert_batch([(task_id, user_id, vector)])
+
+    def upsert_batch(self, items: list[tuple[int, int, Vector]]) -> None:
+        if not items:
+            return
+        with self._session_factory() as session, session.begin():
+            for task_id, user_id, vector in items:
+                raw_bytes = vector.astype(np.float32).tobytes()
+                dims = len(vector)
+                existing = session.get(TaskEmbeddingModel, task_id)
+                if existing:
+                    existing.user_id = user_id
+                    existing.vector_data = raw_bytes
+                    existing.dimensions = dims
+                    existing.updated_at = datetime.now(UTC)
+                else:
+                    new_emb = TaskEmbeddingModel(
+                        task_id=task_id,
+                        user_id=user_id,
+                        vector_data=raw_bytes,
+                        dimensions=dims,
+                    )
+                    session.add(new_emb)
+
+    def search_similar(
+        self,
+        query_vector: Vector,
+        user_id: int,
+        limit: int = 5,
+        threshold: float = 0.5,
+    ) -> list[tuple[int, float]]:
+        with self._session_factory() as session:
+            stmt = select(TaskEmbeddingModel).where(TaskEmbeddingModel.user_id == user_id)
+            rows = session.execute(stmt).scalars().all()
+            if not rows:
+                return []
+
+            task_ids: list[int] = []
+            vectors_list: list[Vector] = []
+            for r in rows:
+                task_ids.append(r.task_id)
+                v = np.frombuffer(r.vector_data, dtype=np.float32)
+                vectors_list.append(v)
+
+            matrix = np.vstack(vectors_list)
+            q = query_vector.astype(np.float32)
+            q_norm = float(np.linalg.norm(q))
+            if q_norm == 0.0:
+                return []
+            q_unit = q / q_norm
+
+            matrix_norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+            matrix_norms[matrix_norms == 0.0] = 1.0
+            matrix_unit = matrix / matrix_norms
+
+            sims = np.dot(matrix_unit, q_unit)
+
+            results: list[tuple[int, float]] = []
+            for tid, score in zip(task_ids, sims.tolist(), strict=True):
+                if score >= threshold:
+                    results.append((tid, float(score)))
+
+            results.sort(key=lambda x: x[1], reverse=True)
+            return results[:limit]
+
+    def delete_vector(self, task_id: int) -> None:
+        with self._session_factory() as session, session.begin():
+            emb = session.get(TaskEmbeddingModel, task_id)
+            if emb:
+                session.delete(emb)

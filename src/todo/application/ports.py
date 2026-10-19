@@ -3,7 +3,12 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 
+import numpy as np
+import numpy.typing as npt
+
 from todo.domain.models import ParsedTask, Priority, Task, TaskStatus, User
+
+Vector = npt.NDArray[np.float32]
 
 
 class UserRepository(ABC):
@@ -63,3 +68,49 @@ class TaskParserPort(ABC):
     @abstractmethod
     def parse(self, text: str, reference_date: datetime | None = None) -> ParsedTask:
         """Parse raw text into a ParsedTask domain object."""
+
+
+# --- Application Port 1: Embedding Generator ---
+# Adapters: OllamaEmbeddingAdapter, FastEmbedAdapter, OpenAIEmbeddingAdapter
+
+
+class TaskEmbeddingPort(ABC):
+    """Abstract port for converting text into normalized vector embeddings."""
+
+    @abstractmethod
+    def embed_text(self, text: str) -> Vector:
+        """Convert a single text string into a normalized float32 vector embedding."""
+
+    @abstractmethod
+    def embed_batch(self, texts: list[str]) -> list[Vector]:
+        """Convert a list of text strings into normalized float32 vector embeddings."""
+
+
+# --- Application Port 2: Vector Storage & Retrieval ---
+# Adapters: SqliteVectorRepository (now), Qdrant / Chroma / Pinecone (later)
+
+
+class TaskVectorRepository(ABC):
+    """Abstract port for storing and performing similarity searches over task embeddings."""
+
+    @abstractmethod
+    def upsert_vector(self, task_id: int, user_id: int, vector: Vector) -> None:
+        """Store or update the vector embedding for a task."""
+
+    @abstractmethod
+    def upsert_batch(self, items: list[tuple[int, int, Vector]]) -> None:
+        """Store or update a batch of (task_id, user_id, vector) embeddings."""
+
+    @abstractmethod
+    def search_similar(
+        self,
+        query_vector: Vector,
+        user_id: int,
+        limit: int = 5,
+        threshold: float = 0.5,
+    ) -> list[tuple[int, float]]:
+        """Find the top-k most similar tasks for a user, returning list of (task_id, score)."""
+
+    @abstractmethod
+    def delete_vector(self, task_id: int) -> None:
+        """Remove a task's vector embedding from the store."""

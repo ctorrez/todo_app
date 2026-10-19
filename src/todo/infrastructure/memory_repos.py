@@ -1,8 +1,8 @@
-"""In-memory implementation of repository ports for blazing-fast unit tests."""
-
 import copy
 
-from todo.application.ports import TaskRepository, UserRepository
+import numpy as np
+
+from todo.application.ports import TaskRepository, TaskVectorRepository, UserRepository, Vector
 from todo.domain.models import Priority, Task, TaskStatus, User
 
 
@@ -82,3 +82,54 @@ class InMemoryTaskRepository(TaskRepository):
             del self._tasks[task_id]
             return True
         return False
+
+
+class InMemoryTaskVectorRepository(TaskVectorRepository):
+    """In-memory vector store backed by a dictionary for instant, mock-free unit tests."""
+
+    def __init__(self) -> None:
+        self._vectors: dict[int, tuple[int, Vector]] = {}
+
+    def upsert_vector(self, task_id: int, user_id: int, vector: Vector) -> None:
+        self._vectors[task_id] = (user_id, vector.copy())
+
+    def upsert_batch(self, items: list[tuple[int, int, Vector]]) -> None:
+        for task_id, user_id, vector in items:
+            self._vectors[task_id] = (user_id, vector.copy())
+
+    def search_similar(
+        self,
+        query_vector: Vector,
+        user_id: int,
+        limit: int = 5,
+        threshold: float = 0.5,
+    ) -> list[tuple[int, float]]:
+        user_items = [(tid, vec) for tid, (uid, vec) in self._vectors.items() if uid == user_id]
+        if not user_items:
+            return []
+
+        task_ids = [tid for tid, _ in user_items]
+        matrix = np.vstack([vec for _, vec in user_items])
+
+        q = query_vector.astype(np.float32)
+        q_norm = float(np.linalg.norm(q))
+        if q_norm == 0.0:
+            return []
+        q_unit = q / q_norm
+
+        matrix_norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+        matrix_norms[matrix_norms == 0.0] = 1.0
+        matrix_unit = matrix / matrix_norms
+
+        sims = np.dot(matrix_unit, q_unit)
+
+        results: list[tuple[int, float]] = []
+        for tid, score in zip(task_ids, sims.tolist(), strict=True):
+            if score >= threshold:
+                results.append((tid, float(score)))
+
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:limit]
+
+    def delete_vector(self, task_id: int) -> None:
+        self._vectors.pop(task_id, None)

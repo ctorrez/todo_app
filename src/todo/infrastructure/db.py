@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Engine, ForeignKey, Integer, String, create_engine
+from sqlalchemy import DateTime, Engine, ForeignKey, Integer, LargeBinary, String, create_engine
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -100,6 +100,24 @@ class TaskModel(Base):
             created_at=task.created_at,
             completed_at=task.completed_at,
         )
+
+
+class TaskEmbeddingModel(Base):
+    """SQLAlchemy model for task_embeddings table."""
+
+    __tablename__ = "task_embeddings"
+
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    vector_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    dimensions: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(UTC), nullable=False
+    )
 
 
 def build_engine(database_url: str = "sqlite:///todo.db", echo: bool = False) -> Engine:
