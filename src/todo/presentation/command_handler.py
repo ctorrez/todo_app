@@ -12,16 +12,34 @@ from todo.domain.models import Priority, Task, TaskStatus, User
 from todo.infrastructure.ai.ollama_parser import OllamaTaskParser
 
 
+def format_datetime(dt: datetime | None) -> str:
+    """Format datetime cleanly: includes HH:MM only if time is set (not midnight 00:00)."""
+    if not dt:
+        return "None"
+    if dt.hour != 0 or dt.minute != 0:
+        return dt.strftime("%Y-%m-%d %H:%M")
+    return dt.strftime("%Y-%m-%d")
+
+
 def parse_date(date_str: str | None) -> datetime | None:
-    """Parse date from common formats."""
+    """Parse date and optional time from common formats."""
     if not date_str:
         return None
-    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"):
+    for fmt in (
+        "%Y-%m-%d %H:%M",
+        "%m/%d/%Y %H:%M",
+        "%Y-%m-%d",
+        "%m/%d/%Y",
+        "%m-%d-%Y",
+        "%Y/%m/%d",
+    ):
         try:
             return datetime.strptime(date_str.strip(), fmt)
         except ValueError:
             continue
-    raise ValueError(f"Invalid date format '{date_str}'. Expected YYYY-MM-DD or MM/DD/YYYY.")
+    raise ValueError(
+        f"Invalid date format '{date_str}'. Expected YYYY-MM-DD [HH:MM] or MM/DD/YYYY [HH:MM]."
+    )
 
 
 def parse_priority(priority_str: str | None) -> Priority | None:
@@ -260,7 +278,7 @@ def _handle_tasks_command(
                 for t in tasks:
                     badge = "[X]" if t.is_completed else "[ ]"
                     prio_badge = f"[{t.priority.value}]"
-                    due = f" (Due: {t.due_date.strftime('%Y-%m-%d')})" if t.due_date else ""
+                    due = f" (Due: {format_datetime(t.due_date)})" if t.due_date else ""
                     alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
                     print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                     if t.description:
@@ -335,7 +353,7 @@ def _handle_ai_command(
             print(f"  Title:       {parsed.title}")
             if parsed.description:
                 print(f"  Description: {parsed.description}")
-            due_str = parsed.due_date.strftime("%Y-%m-%d") if parsed.due_date else "None"
+            due_str = format_datetime(parsed.due_date)
             print(f"  Due Date:    {due_str}")
             print(f"  Priority:    {parsed.priority.value}")
         return 0
@@ -351,7 +369,7 @@ def _handle_ai_command(
             print(json.dumps({"status": "success", "data": task_to_dict(task)}, indent=2))
         else:
             prio = f"[{task.priority.value}]"
-            due = f" (Due: {task.due_date.strftime('%Y-%m-%d')})" if task.due_date else ""
+            due = f" (Due: {format_datetime(task.due_date)})" if task.due_date else ""
             print(f"AI Task Created: #{task.id} {prio} - {task.title}{due}")
             if task.description:
                 print(f"   Description: {task.description}")

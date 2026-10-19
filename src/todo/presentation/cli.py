@@ -148,7 +148,10 @@ class TodoCLI:
             for t in tasks:
                 badge = "[X]" if t.is_completed else "[ ]"
                 prio_badge = f"[{t.priority.value}]"
-                due = f" (Due: {t.due_date.strftime('%Y-%m-%d')})" if t.due_date else ""
+                due = ""
+                if t.due_date:
+                    due_fmt = "%Y-%m-%d %H:%M" if (t.due_date.hour != 0 or t.due_date.minute != 0) else "%Y-%m-%d"
+                    due = f" (Due: {t.due_date.strftime(due_fmt)})"
                 alert = " [OVERDUE!]" if t.is_overdue else (" [DUE TODAY]" if t.is_due_today else "")
                 print(f"  {badge} #{t.id} {prio_badge} - {t.title}{due}{alert}")
                 if t.description:
@@ -164,18 +167,25 @@ class TodoCLI:
         print("\n--- Add Task ---")
         title = input("Task Title: ").strip()
         description = input("Description (optional): ").strip()
-        due_date_str = input("Due Date (YYYY-MM-DD or MM/DD/YYYY, optional): ").strip()
+        due_date_str = input("Due Date (YYYY-MM-DD [HH:MM] or MM/DD/YYYY [HH:MM], optional): ").strip()
 
         due_date: datetime | None = None
         if due_date_str:
-            for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d"):
+            for fmt in (
+                "%Y-%m-%d %H:%M",
+                "%m/%d/%Y %H:%M",
+                "%Y-%m-%d",
+                "%m/%d/%Y",
+                "%m-%d-%Y",
+                "%Y/%m/%d",
+            ):
                 try:
                     due_date = datetime.strptime(due_date_str, fmt)
                     break
                 except ValueError:
                     continue
             if due_date is None:
-                print("Invalid date format. Expected YYYY-MM-DD or MM/DD/YYYY.")
+                print("Invalid date format. Expected YYYY-MM-DD [HH:MM] or MM/DD/YYYY [HH:MM].")
                 return
 
         print("Priority: 1=Low, 2=Medium, 3=High, 4=Urgent [default: 2]")

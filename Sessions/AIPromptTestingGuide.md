@@ -62,14 +62,14 @@ Verifies that the model does **not** hallucinate doctor names, reasons, or fille
 * **Expected Output**:
   ```text
   AI Extracted Task Details (Preview - Not Saved):
-    Title:       Take Grace to the Dr at 2:30 pm
-    Due Date:    2026-10-19
-    Priority:    MEDIUM
+    Title:       Take Grace to the Dr
+    Due Date:    2026-10-19 14:30
+    Priority:    HIGH
   ```
 * **Validation**:
-  * `Title` strips prefix `"add task to"`.
-  * `Description` is empty `""` (no `"Dr. Smith"` hallucination).
-  * `Due Date` defaults to the appointment date.
+  * `Title` strips prefix `"add task to"` and redundant time.
+  * `Description` is empty `""` (no `"Dr. Smith"` or rephrasing hallucination).
+  * `Due Date` extracts both date and 24-hr time (`14:30`).
 
 ---
 
@@ -83,9 +83,9 @@ Verifies that secondary instructions or notes are cleanly separated from the act
 * **Expected Output**:
   ```text
   AI Extracted Task Details (Preview - Not Saved):
-    Title:       Pick up car from mechanic tomorrow at 4pm
+    Title:       Pick up car from mechanic
     Description: Bring spare key and ask about oil leak
-    Due Date:    2026-10-20
+    Due Date:    2026-10-20 16:00
     Priority:    MEDIUM
   ```
 * **Validation**:

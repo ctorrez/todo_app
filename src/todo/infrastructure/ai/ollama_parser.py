@@ -33,20 +33,23 @@ class OllamaTaskParser(TaskParserPort):
             "Rules:\n"
             "1. title: Clean, concise summary. Strip command prefixes like 'add task to', 'remind me to'.\n"
             "2. description: Strictly extractive. ONLY include notes or details explicitly written by the user. "
-            "NEVER invent names, reasons, or facts not present in the input. "
-            "If no extra details exist beyond the task title, output empty string \"\".\n"
+            "NEVER rephrase, explain, or duplicate the task title. NEVER invent words or facts. "
+            "If the input is just a single task with no separate notes, description MUST be empty string \"\".\n"
             "3. priority: Default to MEDIUM. Use HIGH for doctor visits, meetings, or important deadlines. Use URGENT for emergencies or ASAP. Use LOW for casual errands.\n"
-            "4. due_date: Format as YYYY-MM-DD or null.\n\n"
+            "4. due_date: If a specific time of day is mentioned (e.g. '2pm', '2:30 pm', '14:00'), format as 'YYYY-MM-DD HH:MM' in 24-hour time. "
+            "If only a date is mentioned, format as 'YYYY-MM-DD'. If no date or time is mentioned, format as null.\n\n"
             "Examples:\n"
-            "User: \"Call mom tomorrow at 5pm\"\n"
-            'Output: {"title": "Call mom at 5pm", "description": "", "due_date": "YYYY-MM-DD", "priority": "MEDIUM"}\n\n'
-            "User: \"Schedule dentist visit on Friday at 3pm, bring insurance card and records\"\n"
-            'Output: {"title": "Dentist visit at 3pm", "description": "Bring insurance card and records", "due_date": "YYYY-MM-DD", "priority": "HIGH"}\n\n'
+            "User: \"Dentist appointment tomorrow at 2:30pm\"\n"
+            'Output: {"title": "Dentist appointment", "description": "", "due_date": "YYYY-MM-DD 14:30", "priority": "HIGH"}\n\n'
+            "User: \"Schedule team sync on Friday at 3:30pm, bring insurance card and records\"\n"
+            'Output: {"title": "Team sync", "description": "Bring insurance card and records", "due_date": "YYYY-MM-DD 15:30", "priority": "HIGH"}\n\n'
+            "User: \"Buy almond milk on Saturday\"\n"
+            'Output: {"title": "Buy almond milk", "description": "", "due_date": "YYYY-MM-DD", "priority": "LOW"}\n\n'
             "Return ONLY a JSON object:\n"
             "{\n"
             '  "title": "string",\n'
             '  "description": "string",\n'
-            '  "due_date": "YYYY-MM-DD or null",\n'
+            '  "due_date": "YYYY-MM-DD HH:MM or YYYY-MM-DD or null",\n'
             '  "priority": "LOW | MEDIUM | HIGH | URGENT"\n'
             "}"
         )
@@ -91,14 +94,23 @@ class OllamaTaskParser(TaskParserPort):
         if description.lower() == title.lower():
             description = ""
 
-        # Parse due date
+        # Parse due date (date and optional time)
         due_date: datetime | None = None
         due_date_str = result.get("due_date")
         if due_date_str and isinstance(due_date_str, str) and due_date_str.lower() != "null":
-            try:
-                due_date = datetime.strptime(due_date_str.strip(), "%Y-%m-%d").replace(tzinfo=UTC)
-            except ValueError:
-                due_date = None
+            due_clean = due_date_str.strip()
+            for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+                try:
+                    due_date = datetime.strptime(due_clean, fmt).replace(tzinfo=UTC)
+                    break
+                except ValueError:
+                    continue
+            if due_date is None:
+                try:
+                    parsed_iso = datetime.fromisoformat(due_clean)
+                    due_date = parsed_iso if parsed_iso.tzinfo else parsed_iso.replace(tzinfo=UTC)
+                except ValueError:
+                    due_date = None
 
         # Parse priority
         priority_raw = str(result.get("priority", "MEDIUM")).strip().upper()
