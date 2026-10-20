@@ -8,7 +8,7 @@
 ![Coverage](https://img.shields.io/badge/coverage-82%25%2B-brightgreen.svg)
 ![Code Style](https://img.shields.io/badge/linter-ruff-orange.svg)
 
-A minimal, production-grade TODO application built in Python demonstrating **Clean Architecture (Ports & Adapters / Hexagonal)**, the **Repository Pattern**, **Domain-Driven Design (DDD)** concepts, and **Clean Seams**.
+A minimal, production-grade TODO application built in Python demonstrating **Clean Architecture (Ports & Adapters / Hexagonal)**, the **Repository Pattern**, **Domain-Driven Design (DDD)** concepts, and **Clean Seams**. Features **Local AI Natural Language Ingestion** (Powered by Ollama) and **Local Semantic Vector Search** (Powered by Ollama + NumPy).
 
 ---
 
